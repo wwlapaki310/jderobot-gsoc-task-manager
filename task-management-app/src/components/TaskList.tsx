@@ -23,40 +23,66 @@ const TaskList: React.FC = () => {
   const dispatch = useAppDispatch();
   const { tasks, filter, categoryFilter, prioritySort, searchQuery } = useAppSelector(state => state.tasks);
   const { currentUser } = useAppSelector(state => state.auth);
-  
+
   // タスクのフィルタリングとソート
   const filteredAndSortedTasks = useMemo(() => {
-    // フィルタリング処理...
+    // まず現在のユーザーのタスクをフィルタリング
     let result = tasks.filter((task) => {
-      // 検索クエリ、完了状態、カテゴリによるフィルタリング...
+      // 現在のユーザーIDでフィルタリング
+      const isCurrentUserTask = currentUser ? task.userId === currentUser.id : false;
+      
+      // 検索クエリによるフィルタリング
       const matchesSearch = task.title.toLowerCase().includes(searchQuery.toLowerCase());
+      
+      // 完了状態によるフィルタリング
       const matchesCompletionFilter = 
         filter === 'ALL' ||
         (filter === 'COMPLETED' && task.completed) ||
         (filter === 'ACTIVE' && !task.completed);
+      
+      // カテゴリによるフィルタリング
       const matchesCategoryFilter = 
         categoryFilter === 'ALL' || task.category === categoryFilter;
       
-      return matchesSearch && matchesCompletionFilter && matchesCategoryFilter;
+      return isCurrentUserTask && matchesSearch && matchesCompletionFilter && matchesCategoryFilter;
     });
 
-    // ソート処理...
-    // ソートなしの場合はorder属性でソート
+    // ユーザーが特定のソートを選択していない場合は、order属性によるソートを適用
     if (prioritySort === 'NONE') {
       result = [...result].sort((a, b) => {
+        // orderがない場合は作成日時でソート
         if (a.order === undefined && b.order === undefined) {
           return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
         }
+        // orderがある場合はそれでソート
         return (a.order || 0) - (b.order || 0);
       });
     } else {
-      // 優先度、期日などによるソート...
+      // ユーザーが選択したソート方法を適用
+      result = [...result].sort((a, b) => {
+        if (prioritySort === 'HIGH_FIRST') {
+          // 優先度の高い順
+          const priorityOrder: Record<string, number> = { HIGH: 0, MEDIUM: 1, LOW: 2 };
+          return priorityOrder[a.priority] - priorityOrder[b.priority];
+        } else if (prioritySort === 'LOW_FIRST') {
+          // 優先度の低い順
+          const priorityOrder: Record<string, number> = { HIGH: 2, MEDIUM: 1, LOW: 0 };
+          return priorityOrder[a.priority] - priorityOrder[b.priority];
+        } else if (prioritySort === 'DUE_DATE') {
+          // 期日順
+          if (!a.dueDate && !b.dueDate) return 0;
+          if (!a.dueDate) return 1;
+          if (!b.dueDate) return -1;
+          return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
+        }
+        return 0;
+      });
     }
 
     return result;
-  }, [tasks, filter, categoryFilter, prioritySort, searchQuery]);
+  }, [tasks, currentUser, filter, categoryFilter, prioritySort, searchQuery]);
 
-  // ドラッグセンサー設定
+  // センサーの設定（ドラッグの検出方法）
   const sensors = useSensors(
     useSensor(PointerSensor),
     useSensor(KeyboardSensor, {
@@ -65,37 +91,43 @@ const TaskList: React.FC = () => {
   );
 
   // ドラッグ終了時の処理
-  const handleDragEnd = (event: DragEndEvent) => {
+const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
     
     if (over && active.id !== over.id) {
-      console.log("Dragging item:", active.id);
-      console.log("Dropping over:", over.id);
-      
       const oldIndex = filteredAndSortedTasks.findIndex(task => task.id === active.id);
       const newIndex = filteredAndSortedTasks.findIndex(task => task.id === over.id);
       
-      console.log("Old index:", oldIndex, "New index:", newIndex);
-      
       if (oldIndex !== -1 && newIndex !== -1) {
-        // 新しい順序でタスクの配列を作成
-        const newOrder = [...filteredAndSortedTasks];
-        const [movedTask] = newOrder.splice(oldIndex, 1);
-        newOrder.splice(newIndex, 0, movedTask);
+        // 並び替えた配列を作成
+        const newFilteredTasks = arrayMove(filteredAndSortedTasks, oldIndex, newIndex);
         
-        // 全タスクの順序を更新
-        const updatedTasks = tasks.map(task => {
-          const newOrderIndex = newOrder.findIndex(t => t.id === task.id);
-          if (newOrderIndex !== -1) {
-            // フィルタリングされたリストに含まれるタスク
-            return { ...task, order: newOrderIndex };
-          } else {
-            // フィルタリングされていないタスク
-            return { ...task, order: newOrder.length + tasks.indexOf(task) };
+        // 新しいタスクリストを作成（イミュータブルに）
+        const allTasks = tasks.map(task => ({...task})); // ディープコピー
+        
+        // フィルタリングされていないタスクを含む、完全なタスクリストを更新
+        newFilteredTasks.forEach((task, index) => {
+          const taskIndex = allTasks.findIndex(t => t.id === task.id);
+          if (taskIndex !== -1) {
+            // 新しいオブジェクトを作成して代入
+            allTasks[taskIndex] = {
+              ...allTasks[taskIndex],
+              order: index
+            };
           }
         });
         
-        console.log("Updated tasks:", updatedTasks);
+        // 表示されていないタスクにも順番を割り当てる
+        let maxOrder = newFilteredTasks.length - 1;
+        const updatedTasks = allTasks.map(task => {
+          if (!newFilteredTasks.some(t => t.id === task.id)) {
+            return {
+              ...task,
+              order: ++maxOrder
+            };
+          }
+          return task;
+        });
         
         // Reduxストアを更新
         dispatch(updateTaskOrder(updatedTasks));
@@ -103,11 +135,15 @@ const TaskList: React.FC = () => {
     }
   };
 
-  // タスクの表示
+  if (!currentUser) {
+    return <p>ログインしてください</p>;
+  }
+
   if (filteredAndSortedTasks.length === 0) {
     return <p>タスクがありません。新しいタスクを追加してください。</p>;
   }
 
+  // タスクIDの配列を作成（SortableContextで使用）
   const taskIds = filteredAndSortedTasks.map(task => task.id);
 
   return (

@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import DatePicker from 'react-datepicker';
+import 'react-datepicker/dist/react-datepicker.css';
 import { addTask } from '../redux/tasksSlice';
-import { useAppDispatch } from '../redux/hooks';
-import { TaskCategory, TaskPriority } from '../types';
+import { useAppDispatch, useAppSelector } from '../redux/hooks';
+import { TaskCategory, TaskPriority } from '../types/index';
 
 const TaskForm: React.FC = () => {
   const [title, setTitle] = useState<string>('');
@@ -11,16 +12,18 @@ const TaskForm: React.FC = () => {
   const [dueDate, setDueDate] = useState<Date | null>(null);
   
   const dispatch = useAppDispatch();
+  const { currentUser } = useAppSelector(state => state.auth);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (title.trim()) {
+    if (title.trim() && currentUser) {
       dispatch(addTask({
         title,
         category,
         priority,
         dueDate: dueDate ? dueDate.toISOString() : null,
+        userId: currentUser.id, // ユーザーIDを追加
       }));
       
       // フォームをリセット

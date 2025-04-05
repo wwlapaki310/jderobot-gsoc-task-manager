@@ -8,6 +8,7 @@ interface AddTaskPayload {
   category?: TaskCategory;
   priority?: TaskPriority;
   dueDate?: string | null;
+  userId: string; // ユーザーIDは必須
 }
 
 interface UpdateTaskPayload extends Partial<Task> {
@@ -37,6 +38,7 @@ const tasksSlice = createSlice({
         dueDate: action.payload.dueDate || null,
         createdAt: new Date().toISOString(),
         order: state.tasks.length, // 順番を保存
+        userId: action.payload.userId, // ユーザーID
       };
       state.tasks.push(newTask);
     },
@@ -61,17 +63,17 @@ const tasksSlice = createSlice({
     
     // タスク順序の更新（ドラッグ&ドロップ後）
     updateTaskOrder: (state, action: PayloadAction<Task[]>) => {
-  // 受け取ったタスク配列をIDで検索して更新
-  action.payload.forEach(updatedTask => {
-    const index = state.tasks.findIndex(task => task.id === updatedTask.id);
-    if (index !== -1) {
-      state.tasks[index] = updatedTask;
-    }
-  });
-  
-  // orderプロパティでソート
-  state.tasks.sort((a, b) => (a.order || 0) - (b.order || 0));
-},
+      // 受け取ったタスク配列をIDで検索して更新
+      action.payload.forEach(updatedTask => {
+        const index = state.tasks.findIndex(task => task.id === updatedTask.id);
+        if (index !== -1) {
+          state.tasks[index] = updatedTask;
+        }
+      });
+      
+      // orderプロパティでソート
+      state.tasks.sort((a, b) => (a.order || 0) - (b.order || 0));
+    },
     
     // フィルター設定
     setFilter: (state, action: PayloadAction<TasksState['filter']>) => {

@@ -12,7 +12,8 @@ export interface Task {
   priority: TaskPriority;
   dueDate: string | null;
   createdAt: string;
-  order?: number; // タスクの表示順
+  order?: number;
+  userId: string; // ユーザーID
 }
 
 export interface TasksState {
@@ -23,14 +24,15 @@ export interface TasksState {
   searchQuery: string;
 }
 
-
+// 認証関連の型
 export interface User {
-    id: string;
-    username: string;
-    password: string;
-  }
-  
+  id: string;
+  username: string;
+  password: string; // 実際のプロダクションでは平文で保存しないでください
+}
+
 export interface AuthState {
-    currentUser: User | null;
-    isAuthenticated: boolean;
+  currentUser: User | null;
+  isAuthenticated: boolean;
+  error: string | null;
 }

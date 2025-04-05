@@ -1,49 +1,68 @@
-// src/redux/authSlice.ts
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 import { v4 as uuidv4 } from 'uuid';
 import { User, AuthState } from '../types/index';
 
 // ローカルストレージからユーザー情報を取得
 const loadUsers = (): User[] => {
-  const users = localStorage.getItem('users');
-  return users ? JSON.parse(users) : [];
+  try {
+    const users = localStorage.getItem('users');
+    return users ? JSON.parse(users) : [];
+  } catch (err) {
+    console.error('Error loading users from localStorage:', err);
+    return [];
+  }
 };
 
 // ローカルストレージにユーザー情報を保存
-const saveUsers = (users: User[]) => {
-  localStorage.setItem('users', JSON.stringify(users));
+const saveUsers = (users: User[]): void => {
+  try {
+    localStorage.setItem('users', JSON.stringify(users));
+  } catch (err) {
+    console.error('Error saving users to localStorage:', err);
+  }
 };
 
 // ローカルストレージから現在のユーザー情報を取得
 const loadCurrentUser = (): User | null => {
-  const currentUser = localStorage.getItem('currentUser');
-  return currentUser ? JSON.parse(currentUser) : null;
+  try {
+    const currentUser = localStorage.getItem('currentUser');
+    return currentUser ? JSON.parse(currentUser) : null;
+  } catch (err) {
+    console.error('Error loading current user from localStorage:', err);
+    return null;
+  }
 };
 
 // ローカルストレージに現在のユーザー情報を保存
-const saveCurrentUser = (user: User | null) => {
-  if (user) {
-    localStorage.setItem('currentUser', JSON.stringify(user));
-  } else {
-    localStorage.removeItem('currentUser');
+const saveCurrentUser = (user: User | null): void => {
+  try {
+    if (user) {
+      localStorage.setItem('currentUser', JSON.stringify(user));
+    } else {
+      localStorage.removeItem('currentUser');
+    }
+  } catch (err) {
+    console.error('Error saving current user to localStorage:', err);
   }
 };
 
 const initialState: AuthState = {
   currentUser: loadCurrentUser(),
   isAuthenticated: !!loadCurrentUser(),
+  error: null,
 };
 
 const authSlice = createSlice({
   name: 'auth',
   initialState,
   reducers: {
-    register: (state, action: PayloadAction<{ username: string; password: string }>) => {
+    registerRequest: (state, action: PayloadAction<{ username: string; password: string }>) => {
       const users = loadUsers();
       
       // ユーザー名の重複チェック
       if (users.some(user => user.username === action.payload.username)) {
-        throw new Error('このユーザー名は既に使用されています');
+        state.error = 'このユーザー名は既に使用されています';
+        return;
       }
       
       // 新しいユーザーを作成
@@ -60,10 +79,11 @@ const authSlice = createSlice({
       // 新しいユーザーでログイン状態にする
       state.currentUser = newUser;
       state.isAuthenticated = true;
+      state.error = null;
       saveCurrentUser(newUser);
     },
     
-    login: (state, action: PayloadAction<{ username: string; password: string }>) => {
+    loginRequest: (state, action: PayloadAction<{ username: string; password: string }>) => {
       const users = loadUsers();
       
       // ユーザー名とパスワードをチェック
@@ -72,22 +92,29 @@ const authSlice = createSlice({
       );
       
       if (!user) {
-        throw new Error('ユーザー名またはパスワードが正しくありません');
+        state.error = 'ユーザー名またはパスワードが正しくありません';
+        return;
       }
       
       // ログイン状態を更新
       state.currentUser = user;
       state.isAuthenticated = true;
+      state.error = null;
       saveCurrentUser(user);
     },
     
-    logout: (state) => {
+    logoutRequest: (state) => {
       state.currentUser = null;
       state.isAuthenticated = false;
+      state.error = null;
       saveCurrentUser(null);
     },
+    
+    clearError: (state) => {
+      state.error = null;
+    }
   },
 });
 
-export const { register, login, logout } = authSlice.actions;
+export const { registerRequest, loginRequest, logoutRequest, clearError } = authSlice.actions;
 export default authSlice.reducer;
