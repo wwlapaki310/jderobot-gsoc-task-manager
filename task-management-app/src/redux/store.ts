@@ -1,5 +1,6 @@
 import { configureStore } from '@reduxjs/toolkit';
 import tasksReducer from './tasksSlice';
+import authReducer from './authSlice';
 import { TasksState } from '../types';
 
 // ローカルストレージからタスクを取得
@@ -34,6 +35,7 @@ const persistedState = loadState();
 const store = configureStore({
   reducer: {
     tasks: tasksReducer,
+    auth: authReducer,
   },
   preloadedState: persistedState,
 });

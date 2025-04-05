@@ -12,6 +12,7 @@ export interface Task {
   priority: TaskPriority;
   dueDate: string | null;
   createdAt: string;
+  order?: number; // タスクの表示順
 }
 
 export interface TasksState {
@@ -20,4 +21,16 @@ export interface TasksState {
   categoryFilter: CategoryFilter;
   prioritySort: PrioritySort;
   searchQuery: string;
+}
+
+
+export interface User {
+    id: string;
+    username: string;
+    password: string;
+  }
+  
+export interface AuthState {
+    currentUser: User | null;
+    isAuthenticated: boolean;
 }
