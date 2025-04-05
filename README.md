@@ -2,6 +2,8 @@
 
 # タスク管理アプリケーション - JdeRobot GSoC 2025
 
+https://www.youtube.com/watch?v=wuFg_FXqGbk
+
 このプロジェクトは、JdeRobot GSoC 2025の応募課題として作成されたタスク管理アプリケーションです。
 React、Redux、TypeScriptを使用して構築されています。
 
